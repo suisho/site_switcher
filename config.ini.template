@@ -1,0 +1,7 @@
+[path]
+www=
+packages=
+production=
+staging=
+
+[projects]
