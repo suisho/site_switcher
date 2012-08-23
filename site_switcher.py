@@ -1,10 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 import os
 import datetime
 import logging
 import subprocess
-
+import optparse
 import sys
 
 import config
@@ -63,7 +63,8 @@ class SiteSwitcher:
         self.packages_dir = packages_dir
 
     #現在時刻取得
-    def get_now(self):
+    @staticmethod
+    def get_now():
         # TODO:タイムゾーン
         time = datetime.datetime.now()
         return time
@@ -97,7 +98,8 @@ class SiteSwitcher:
 
     def exec_command(self, cmd):
         result = subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()[0]
-        logging.debug([cmd, result])
+        logging.debug(" ".join(cmd))
+        logging.debug(result)
         return result
         #return result[1]
 
@@ -112,19 +114,58 @@ class SiteSwitcher:
         return self.exec_command(cmd)
 
 
-def swich_production():
+def switch(project, env="production", time=None):
+    conf = config.Config()
+    env_dir = None
+    if env == "production":
+        env_dir = conf.production + "/" + project
+    elif env == "staging":
+        env_dir = conf.staging + "/" + project
+    else:
+        raise Exception("Invalid environment::"+ env)
+    packages_dir = conf.packages + "/" + project
+    switcher = SiteSwitcher(env_dir, packages_dir)
+    switcher.switch_auto(time)
+
+def auto_switching():
     conf = config.Config()
     projects = os.listdir(conf.packages)
     for project in projects:
         print "switch:" + project
-        prod_dir = conf.production + "/" + project
-        packages_dir = conf.packages + "/" + project
-        switcher = SiteSwitcher(prod_dir, packages_dir)
-        switcher.switch_auto()
+        switch(project)
 
 if __name__ == '__main__':
     scriptdir = os.path.dirname(__file__)
     os.chdir(scriptdir)
-    #argparser = argparse.ArgumentParser();
-    #argparser.add_argument('-s',dest='staging_time')
-    swich_production()
+    optparser = optparse.OptionParser();
+    optparser.set_usage(
+u"""
+自動的に本番を切り替えたい場合(cronとか)
+    site_switcher.py --auto
+手動でstagingを指定時間の場合に切り替えたい時
+    site_switcher.py --project wooser --env staging --time 2011_01_01
+""");
+    optparser.add_option("--auto", dest="auto", default=False, action="store_true",
+                         help=u"自動モードになります。このオプションが無い場合は、--projectが必須となります")
+    optparser.add_option("--project", dest="project",
+                         help=u"切り替えるプロジェクトを指定します")
+    optparser.add_option("--env",  dest="env",  action="store", default="staging", choices=("production", "staging"),
+                         help=u"production又はstagingを選びます")
+    optparser.add_option("--time", dest="time",
+                         help=u"この時間の場合として切り替えを行います")
+
+    (opt, args) = optparser.parse_args()
+
+    if opt.auto:
+        #autoモードなら終わり
+        auto_switching()
+        sys.exit()
+    elif opt.project:
+        print "manual mode"
+        if opt.time:
+            time = PackageDirectory.parse_dir_time(opt.time)
+        else:
+            time = None
+        switch(opt.project, opt.env, time)
+    else:
+        optparser.print_help()

@@ -8,6 +8,7 @@ class Config:
         parser.read(conf_file)
         self.packages = parser.get("path", "packages")
         self.production = parser.get("path", "production")
+        self.staging = parser.get("path", "staging")
         self.www = parser.get("path", "www")
         #self.debug = config.get("debug","debug")
         self.debug = False
